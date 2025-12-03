@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment #templete para crear pods
+metadata:
+  name: recetas
+spec:
+  selector:
+    matchLabels:
+      app: recetas
+  template:
+    metadata:
+      labels:
+        app: recetas
+    spec: # plantilla para los pods
+      containers:
+        - name: recetas
+          image: recetas:latest
+
+          # No descargar la imagen ya que la imagen debe estar ya en el nodo donde corre el Pod
+          # Si no esta, el Pod falla
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3000
+          env:
+            - name: MONGO_URL
+              value: "mongodb://manu:password@monguito:27017/recetario?authSource=admin"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recetas
+spec:
+  # Servicio no solo sea accesible desde dentro del clúster, sino también desde afuera del clúster, a través de los nodos
+  type: NodePort
+  selector:
+    app: recetas
+  ports:
+    # Puerto interno del Service
+    - port: 3000
+      # Puerto dentro del Pod al que se redirige el tráfico
+      targetPort: 3000
+      # Puerto “externo” que se abre en cada nodo del clúste
+      nodePort: 30030

@@ -1,0 +1,43 @@
+# Versión del formato de Docker Compose que se esta usando
+version: "3.9"
+
+# Sección donde se definen los contenedores que se van a usar
+services:
+  # Nombre del contenedor que se va a crear
+  recetas:
+    # Le dice a Docker que construya una imagen usando el Dockerfile que está en el directorio actual
+    build: .
+    ports:
+      # Mapea el puerto 3000 del host -> puerto 3000 del contenedor.
+      - "3000:3000"
+
+    # Monta la carpeta actual dentro del contenedor en /home/app.
+    # Esto permite desarrollar en vivo: si se modifica un archivo, se refleja dentro del contenedor sin tener que reconstruir.
+    volumes:
+      - .:/home/app
+
+    # Ejecuta nodemon, que reinicia automáticamente la app cuando detecta cambios.
+    command: npx nodemon index.js
+
+    # Hace que este contenedor se inicie después del contenedor monguito.
+    depends_on:
+      - monguito
+
+  monguito:
+    # Usa la imagen oficial de Mongo de Docker Hub
+    image: mongo
+
+    # Abre el puerto por defecto de MongoDB para conectarse desde afuera
+    ports:
+      - "27017:27017"
+
+    # Crea un usuario administrador inicial de Mongo con usuario y contraseña
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=manu
+      - MONGO_INITDB_ROOT_PASSWORD=password
+
+    volumes:
+      - mongo-data:/data/db
+volumes:
+  # Docker lo crea y lo guarda en su almacenamiento interno
+  mongo-data:

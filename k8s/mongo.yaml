@@ -1,0 +1,79 @@
+
+# Usa la API v1 de Kubernetes
+# Crea un PVC, una solicitud de almacenamiento persistente.
+apiVersion: v1
+# PVC es como "necesito un volumen duradero para guardar datos que sobrevivan reinicios de Pods, reemplazos, etc"
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo-pvc
+spec:
+  accessModes:
+    # Solo un nodo puede leer y escribir a la vez
+    # Un único nodo tiene acceso de lectura/escritura al volumen a la vez
+    - ReadWriteOnce
+  resources:
+  #los recursos que les garantizamos que siempre va a tener disponible
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+# Templete para crear pods
+kind: Deployment
+metadata:
+  name: monguito
+
+# Contiene lo que se quiere que ese objeto cumpla o tenga
+spec:
+  # Seleccionar respecto a ciertos criterios
+  # Esto controlador se aplica a aquellos Pods cuyo label (pares clave-valor) tengan app=monguito
+  selector:
+    # Conjunto de criterios de igualdad 
+    matchLabels:
+      app: monguito
+
+  # Plantilla que usa Kubernetes cada vez que se cree un nuevo Pod para este Deployment
+  template:
+    metadata:
+      # Todos los Pods que se cree en este Deployment tendrán la etiqueta app=monguito
+      labels:
+        app: monguito
+    spec:
+      # Lista de contenedores que ese Pod va a correr
+      containers:
+        - name: mongo
+          image: mongo
+          ports:
+            # El contenedor escuchará en el puerto 27017
+            - containerPort: 27017
+          # Variables de entorno que se pasan al contenedor al arrancar
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: manu
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: password
+          # Indica dónde (en qué ruta dentro del contenedor) vas a “montar” un volumen externo
+          volumeMounts:
+            - mountPath: /data/db
+              name: mongo-storage
+      volumes:
+        - name: mongo-storage
+          # Este volumen que va a montar para este Pod corresponde a una solicitud previa de almacenamiento persistente (PVC)
+          persistentVolumeClaim:
+            # Usa el PV (PersistentVolume) que quedó vinculado a la PVC llamada mongo-pvc
+            claimName: mongo-pvc
+
+---
+# Permite que otros Pods de tu clúster (tu API, tu backend, etc.) se conecten a la base de datos 
+# usando una dirección única, por ejemplo monguito
+apiVersion: v1
+kind: Service
+metadata:
+  name: monguito
+spec:
+  selector:
+    app: monguito
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
